@@ -23,12 +23,12 @@ vv --> does that come from the counterbalancing above?
 Total number of trials: we want to have at least 20 instances of each combination of task-transition x congruency
 """
 
-color  = Factor("color",  ["red", "blue", "green"])
+color  = Factor("color",  ["red", "blue"])
 motion = Factor("motion", ["up", "down"])
 task   = Factor("task",   ["color", "motion"])
 
 """
-          correct response (left, right): dependent factor.
+correct response (left, right): dependent factor.
 if task == color & current color == red then correct response =  left
 if task == motion & current motion == up then correct response =  left
 .
@@ -87,15 +87,15 @@ if color-motion then task transition = switch
 if motion-color then task transition = switch
 """
 
-def task_repeat(colors, motions):
-    return (color[0] == color[1]) or (motions[0] == motions[1])
+def task_repeat(task0, task1):
+    return task0 == task1
 
-def task_switch(colors, motions):
-    return not task_repeat(colors, motions)
+def task_switch(task0, task1):
+    return not task_repeat(task0, task1)
 
 task_transition = Factor("task_transition", [
-    DerivedLevel("repeat", Transition(task_repeat, [color, motion])),
-    DerivedLevel("switch", Transition(task_switch, [color, motion]))
+    DerivedLevel("repeat", Transition(task_repeat, [task, task])),
+    DerivedLevel("switch", Transition(task_switch, [task, task]))
 ])
 
 """
