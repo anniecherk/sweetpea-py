@@ -2,8 +2,9 @@ import operator as op
 
 from sweetpea import *
 
-color = Factor("color", ["red", "blue", "green"])
-text  = Factor("text",  ["red", "blue", "green"])
+color_list = ["red", "blue", "green", "yellow", "orange"]
+color = Factor("color", color_list)
+text  = Factor("text",  color_list)
 
 conLevel  = DerivedLevel("con", WithinTrial(op.eq, [color, text]))
 incLevel  = DerivedLevel("inc", WithinTrial(op.ne, [color, text]))
@@ -17,6 +18,7 @@ constraints = [NoMoreThanKInARow(k, ("congruent?", "con"))]
 
 block        = fully_cross_block(design, crossing, constraints)
 
-experiments  = synthesize_trials(block)
+desugar(block)
+#experiments  = synthesize_trials(block)
 
-print_experiments(block, experiments)
+#print_experiments(block, experiments)
