@@ -182,6 +182,14 @@ class Derivation(Constraint):
         # TODO: validation
 
     def apply(self, block: Block, backend_request: BackendRequest) -> None:
+        if self.derived_idx < block.grid_variables():
+            self.__apply_derivation(block, backend_request)
+        else:
+            # If the index is beyond the grid variables, that means it's a derivation from a complex window.
+            # (This is brittle, but I haven't come up with a better way yet.)
+            self.__apply_derivation_with_complex_window(block, backend_request)
+
+    def __apply_derivation(self, block: Block, backend_request: BackendRequest) -> None:
         trial_size = block.variables_per_trial()
         cross_size = block.trials_per_sample()
 
@@ -189,6 +197,23 @@ class Derivation(Constraint):
         for n in range(cross_size):
             or_clause = Or(list(And(list(map(lambda x: x + (n * trial_size) + 1, l))) for l in self.dependent_idxs))
             iffs.append(Iff(self.derived_idx + (n * trial_size) + 1, or_clause))
+
+        (cnf, new_fresh) = block.cnf_fn(And(iffs), backend_request.fresh)
+
+        backend_request.cnfs.append(cnf)
+        backend_request.fresh = new_fresh
+
+    def __apply_derivation_with_complex_window(self, block: Block, backend_request: BackendRequest) -> None:
+        # The number of constraints that a complex derivation generates is dependent on its stride....
+        # TODO: I'll have to do something about this when we implement general windows. Transition still 
+        # Works because it can assume a stride of 1.
+        trial_size = block.variables_per_trial()
+        trial_count = block.trials_per_sample()
+
+        iffs = []
+        for n in range(trial_count - 1):
+            or_clause = Or(list(And(list(map(lambda x: x + (n * trial_size) + 1, l))) for l in self.dependent_idxs))
+            iffs.append(Iff(self.derived_idx + (n * 2) + 1, or_clause))
 
         (cnf, new_fresh) = block.cnf_fn(And(iffs), backend_request.fresh)
 

@@ -172,6 +172,40 @@ def test_derivation():
     assert backend_request.cnfs == [expected_cnf]
 
 
+def test_derivation_with_transition():
+    block = fully_cross_block([color, text, color_repeats_factor],
+                              [color, text],
+                              [])
+
+    # Color repeats derivation
+    d = Derivation(16, [[0, 4], [1, 5]])
+    backend_request = BackendRequest(23)
+    d.apply(block, backend_request)
+
+    (expected_cnf, expected_fresh) = to_cnf_tseitin(And([
+        Iff(17, Or([And([1, 5 ]), And([2,  6 ])])),
+        Iff(19, Or([And([5, 9 ]), And([6,  10])])),
+        Iff(21, Or([And([9, 13]), And([10, 14])]))
+    ]), 23)
+
+    assert backend_request.fresh == expected_fresh
+    assert backend_request.cnfs == [expected_cnf]
+
+    # Incongruent derivation
+    d = Derivation(17, [[0, 5], [1, 4]])
+    backend_request = BackendRequest(23)
+    d.apply(block, backend_request)
+
+    (expected_cnf, expected_fresh) = to_cnf_tseitin(And([
+        Iff(18, Or([And([1, 6 ]), And([2,  5 ])])),
+        Iff(20, Or([And([5, 10]), And([6,  9 ])])),
+        Iff(22, Or([And([9, 14]), And([10, 13])]))
+    ]), 23)
+
+    assert backend_request.fresh == expected_fresh
+    assert backend_request.cnfs == [expected_cnf]
+
+
 def test_nomorethankinarow():
     c = NoMoreThanKInARow(1, ("color", "red"))
     backend_request = BackendRequest(0)
