@@ -2,7 +2,7 @@ import operator as op
 import pytest
 
 from sweetpea import fully_cross_block
-from sweetpea.primitives import Factor, DerivedLevel, WithinTrial
+from sweetpea.primitives import Factor, DerivedLevel, WithinTrial, Transition
 from sweetpea.constraints import Consistency, FullyCross, Derivation, NoMoreThanKInARow, Forbid
 from sweetpea.backend import LowLevelRequest, BackendRequest
 from sweetpea.logic import And, Or, Iff, to_cnf_tseitin
@@ -15,24 +15,26 @@ con_level  = DerivedLevel("con", WithinTrial(op.eq, [color, text]))
 inc_level  = DerivedLevel("inc", WithinTrial(op.ne, [color, text]))
 con_factor = Factor("congruent?", [con_level, inc_level])
 
+color_repeats_level   = DerivedLevel("yes", Transition(op.eq, [color, color]))
+color_no_repeat_level = DerivedLevel("no", Transition(op.ne, [color, color]))
+color_repeats_factor  = Factor("color repeats?", [color_repeats_level, color_no_repeat_level])
+
 design = [color, text, con_factor]
 crossing = [color, text]
 block = fully_cross_block(design, crossing, [])
 
 
 def test_consistency():
-    backend_request = BackendRequest(0)
-
     # From standard example
     # [ LowLevelRequest("EQ", 1, [1, 2]), LowLevelRequest("EQ", 1, [3, 4]), ...]
-    backend_request.ll_requests.clear()
+    backend_request = BackendRequest(0)
 
     Consistency.apply(block, backend_request)
     assert backend_request.ll_requests == \
         list(map(lambda x: LowLevelRequest("EQ", 1, [x, x+1]), range(1, 24, 2)))
 
     # Different case
-    backend_request.ll_requests.clear()
+    backend_request = BackendRequest(0)
     f = Factor("a", ["b", "c", "d", "e"])
     f_block = fully_cross_block([f], [f], [])
 
@@ -41,7 +43,7 @@ def test_consistency():
         list(map(lambda x: LowLevelRequest("EQ", 1, [x, x+1, x+2, x+3]), range(1, 16, 4)))
 
     # Varied level lengths
-    backend_request.ll_requests.clear()
+    backend_request = BackendRequest(0)
     f1 = Factor("a", ["b", "c", "d"])
     f2 = Factor("e", ["f"])
     f_block = fully_cross_block([f1, f2], [f1, f2], [])
@@ -51,6 +53,20 @@ def test_consistency():
         LowLevelRequest("EQ", 1, [1, 2, 3]), LowLevelRequest("EQ", 1, [4]),
         LowLevelRequest("EQ", 1, [5, 6, 7]), LowLevelRequest("EQ", 1, [8]),
         LowLevelRequest("EQ", 1, [9, 10, 11]), LowLevelRequest("EQ", 1, [12])]
+
+
+def test_consistency_with_transition():
+    block = fully_cross_block([color, text, color_repeats_factor],
+                              [color, text],
+                              [])
+
+    backend_request = BackendRequest(0)
+    Consistency.apply(block, backend_request)
+
+    # Because the color_repeats_factor doesn't apply to the first trial, (there isn't a previous trial
+    # to compare to) the variables only go up to 22.
+    assert backend_request.ll_requests == \
+        list(map(lambda x: LowLevelRequest("EQ", 1, [x, x+1]), range(1, 22, 2)))
 
 
 def test_fully_cross():

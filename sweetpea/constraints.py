@@ -2,7 +2,7 @@ from typing import List, Tuple, cast
 from itertools import product, chain, accumulate, repeat
 
 from sweetpea.base_constraint import Constraint
-from sweetpea.internal import chunk, pairwise, get_level_name
+from sweetpea.internal import chunk, chunk_list, pairwise, get_level_name
 from sweetpea.blocks import Block
 from sweetpea.backend import LowLevelRequest, BackendRequest
 from sweetpea.logic import Iff, And, Or
@@ -39,11 +39,20 @@ class Consistency(Constraint):
     def apply(block: Block, backend_request: BackendRequest) -> None:
         next_var = 1
         for _ in range(block.trials_per_sample()):
-            for f in block.design:
+            for f in filter(lambda f: not f.has_complex_window(), block.design):
                 number_of_levels = len(f.levels)
                 new_request = LowLevelRequest("EQ", 1, list(range(next_var, next_var + number_of_levels)))
                 backend_request.ll_requests.append(new_request)
                 next_var += number_of_levels
+
+        for f in filter(lambda f: f.has_complex_window(), block.design):
+            window = f.levels[0].window
+            variables_for_window = block.variables_for_window(window)
+            var_list = list(map(lambda n: n + next_var, range(variables_for_window)))
+            chunks = list(chunk_list(var_list, window.width))
+            backend_request.ll_requests += list(map(lambda v: LowLevelRequest("EQ", 1, v), chunks))
+            next_var += variables_for_window
+
 
 
 """
