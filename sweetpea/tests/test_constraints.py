@@ -69,7 +69,32 @@ def test_consistency_with_transition():
         list(map(lambda x: LowLevelRequest("EQ", 1, [x, x+1]), range(1, 22, 2)))
 
 
-def test_fully_cross():
+def test_fully_cross_simple():
+    block = fully_cross_block([color, text],
+                              [color, text],
+                              [])
+
+    (expected_cnf, _) = to_cnf_tseitin(And([
+        Iff(17, And([1,  3 ])), Iff(18, And([1,  4 ])), Iff(19, And([2,  3 ])), Iff(20, And([2,  4 ])),
+        Iff(21, And([5,  7 ])), Iff(22, And([5,  8 ])), Iff(23, And([6,  7 ])), Iff(24, And([6,  8 ])),
+        Iff(25, And([9,  11])), Iff(26, And([9,  12])), Iff(27, And([10, 11])), Iff(28, And([10, 12])),
+        Iff(29, And([13, 15])), Iff(30, And([13, 16])), Iff(31, And([14, 15])), Iff(32, And([14, 16]))
+    ]), 33)
+
+    backend_request = BackendRequest(17)
+    FullyCross.apply(block, backend_request)
+
+    assert backend_request.fresh == 66
+    assert backend_request.cnfs == [expected_cnf]
+    assert backend_request.ll_requests == [
+        LowLevelRequest("EQ", 1, [17, 21, 25, 29]),
+        LowLevelRequest("EQ", 1, [18, 22, 26, 30]),
+        LowLevelRequest("EQ", 1, [19, 23, 27, 31]),
+        LowLevelRequest("EQ", 1, [20, 24, 28, 32])
+    ]
+
+
+def test_fully_cross_with_constraint():
     (expected_cnf, _) = to_cnf_tseitin(And([
         Iff(25, And([1,  3 ])), Iff(26, And([1,  4 ])), Iff(27, And([2,  3 ])), Iff(28, And([2,  4 ])),
         Iff(29, And([7,  9 ])), Iff(30, And([7,  10])), Iff(31, And([8,  9 ])), Iff(32, And([8,  10])),
@@ -87,6 +112,31 @@ def test_fully_cross():
         LowLevelRequest("EQ", 1, [26, 30, 34, 38]),
         LowLevelRequest("EQ", 1, [27, 31, 35, 39]),
         LowLevelRequest("EQ", 1, [28, 32, 36, 40])
+    ]
+
+
+def test_fully_cross_with_transition_in_design():
+    block = fully_cross_block([color, text, color_repeats_factor],
+                              [color, text],
+                              [])
+
+    backend_request = BackendRequest(23)
+    FullyCross.apply(block, backend_request)
+
+    (expected_cnf, _) = to_cnf_tseitin(And([
+        Iff(23, And([1,  3 ])), Iff(24, And([1,  4 ])), Iff(25, And([2,  3 ])), Iff(26, And([2,  4 ])),
+        Iff(27, And([5,  7 ])), Iff(28, And([5,  8 ])), Iff(29, And([6,  7 ])), Iff(30, And([6,  8 ])),
+        Iff(31, And([9,  11])), Iff(32, And([9,  12])), Iff(33, And([10, 11])), Iff(34, And([10, 12])),
+        Iff(35, And([13, 15])), Iff(36, And([13, 16])), Iff(37, And([14, 15])), Iff(38, And([14, 16]))
+    ]), 39)
+
+    assert backend_request.fresh == 72
+    assert backend_request.cnfs == [expected_cnf]
+    assert backend_request.ll_requests == [
+        LowLevelRequest("EQ", 1, [23, 27, 31, 35]),
+        LowLevelRequest("EQ", 1, [24, 28, 32, 36]),
+        LowLevelRequest("EQ", 1, [25, 29, 33, 37]),
+        LowLevelRequest("EQ", 1, [26, 30, 34, 38])
     ]
 
 
