@@ -62,5 +62,18 @@ def test_correct_solution_count_with_repeated_color_factor_but_unconstrained():
 
     block  = fully_cross_block(design, crossing, constraints)
     experiments  = synthesize_trials_non_uniform(block, 100)
+
+    assert len(experiments) == 24
+
+
+def test_correct_solution_count_with_repeated_color_factor_and_constrained():
+    design = [color, text, repeated_color_factor]
+    crossing = [color, text]
+    constraints = [NoMoreThanKInARow(1, ("repeated color?", "repeated"))]
+
+    block  = fully_cross_block(design, crossing, constraints)
+    experiments  = synthesize_trials_non_uniform(block, 100)
     
+    # With only two colors, there can never be two color repetitons anyways,
+    # so the total should still be the same.
     assert len(experiments) == 24
