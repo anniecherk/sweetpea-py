@@ -2,7 +2,7 @@ from typing import List, Tuple, cast
 from itertools import product, chain, accumulate, repeat
 
 from sweetpea.base_constraint import Constraint
-from sweetpea.internal import chunk, chunk_list, pairwise, get_level_name
+from sweetpea.internal import chunk, chunk_list, pairwise, get_level_name, get_all_level_names
 from sweetpea.blocks import Block
 from sweetpea.backend import LowLevelRequest, BackendRequest
 from sweetpea.logic import Iff, And, Or
@@ -205,7 +205,7 @@ class Derivation(Constraint):
 
     def __apply_derivation_with_complex_window(self, block: Block, backend_request: BackendRequest) -> None:
         # The number of constraints that a complex derivation generates is dependent on its stride....
-        # TODO: I'll have to do something about this when we implement general windows. Transition still 
+        # TODO: I'll have to do something about this when we implement general windows. Transition still
         # Works because it can assume a stride of 1.
         trial_size = block.variables_per_trial()
         trial_count = block.trials_per_sample()
@@ -276,11 +276,10 @@ class NoMoreThanKInARow(Constraint):
 
     def __desugar(self, level:Tuple[str, str], block: Block) -> List[LowLevelRequest]:
         # Generate a list of (factor name, level name) tuples from the block
-        level_tuples = [list(map(lambda level: (f.name, level if isinstance(level, str) else level.name), f.levels)) for f in block.design]
-        flattened_tuples = list(chain(*level_tuples))
+        level_tuples = get_all_level_names(block.design)
 
         # Locate the specified level in the list
-        first_variable = flattened_tuples.index(level) + 1
+        first_variable = level_tuples.index(level) + 1
 
         # Build the variable list
         design_var_count = block.variables_per_trial()
@@ -311,11 +310,10 @@ class Forbid(Constraint):
 
     def apply(self, block: Block, backend_request: BackendRequest) -> None:
         # Generate a list of (factor name, level name) tuples from the block
-        level_tuples = [list(map(lambda level: (f.name, level if isinstance(level, str) else level.name), f.levels)) for f in block.design]
-        flattened_tuples = list(chain(*level_tuples))
+        level_tuples = get_all_level_names(block.design)
 
         # Locate the specified level in the list
-        first_variable = flattened_tuples.index(self.level) + 1
+        first_variable = level_tuples.index(self.level) + 1
 
         # Build the variable list
         design_var_count = block.variables_per_trial()

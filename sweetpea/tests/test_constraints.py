@@ -2,6 +2,7 @@ import operator as op
 import pytest
 
 from sweetpea import fully_cross_block
+from sweetpea.blocks import Block
 from sweetpea.primitives import Factor, DerivedLevel, WithinTrial, Transition
 from sweetpea.constraints import Consistency, FullyCross, Derivation, NoMoreThanKInARow, Forbid
 from sweetpea.backend import LowLevelRequest, BackendRequest
@@ -206,51 +207,45 @@ def test_derivation_with_transition():
     assert backend_request.cnfs == [expected_cnf]
 
 
-def test_nomorethankinarow():
-    c = NoMoreThanKInARow(1, ("color", "red"))
+def __run_nomorethankinarow(c: NoMoreThanKInARow, block: Block = block) -> BackendRequest:
     backend_request = BackendRequest(0)
     c.apply(block, backend_request)
+    return backend_request
+
+
+def test_nomorethankinarow():
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(1, ("color", "red")))
     assert backend_request.ll_requests == [
         LowLevelRequest("LT", 2, [1,  7 ]),
         LowLevelRequest("LT", 2, [7,  13]),
         LowLevelRequest("LT", 2, [13, 19])
     ]
 
-    c = NoMoreThanKInARow(2, ("color", "red"))
-    backend_request = BackendRequest(0)
-    c.apply(block, backend_request)
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(2, ("color", "red")))
     assert backend_request.ll_requests == [
         LowLevelRequest("LT", 3, [1, 7,  13]),
         LowLevelRequest("LT", 3, [7, 13, 19])
     ]
 
-    c = NoMoreThanKInARow(1, ("color", "blue"))
-    backend_request = BackendRequest(0)
-    c.apply(block, backend_request)
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(1, ("color", "blue")))
     assert backend_request.ll_requests == [
         LowLevelRequest("LT", 2, [2,  8 ]),
         LowLevelRequest("LT", 2, [8,  14]),
         LowLevelRequest("LT", 2, [14, 20])
     ]
 
-    c = NoMoreThanKInARow(2, ("color", "blue"))
-    backend_request = BackendRequest(0)
-    c.apply(block, backend_request)
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(2, ("color", "blue")))
     assert backend_request.ll_requests == [
         LowLevelRequest("LT", 3, [2, 8,  14]),
         LowLevelRequest("LT", 3, [8, 14, 20])
     ]
 
-    c = NoMoreThanKInARow(3, ("congruent?", "con"))
-    backend_request = BackendRequest(0)
-    c.apply(block, backend_request)
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(3, ("congruent?", "con")))
     assert backend_request.ll_requests == [
         LowLevelRequest("LT", 4, [5, 11, 17, 23])
     ]
 
-    c = NoMoreThanKInARow(0, ("congruent?", "con"))
-    backend_request = BackendRequest(0)
-    c.apply(block, backend_request)
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(0, ("congruent?", "con")))
     assert backend_request.ll_requests == [
         LowLevelRequest("LT", 1, [5]),
         LowLevelRequest("LT", 1, [11]),
