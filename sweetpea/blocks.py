@@ -67,6 +67,12 @@ class Block:
     def variables_for_window(self, window: Union[Transition, Window]) -> int:
         pass
 
+    """
+    Retrieve a factor by name.
+    """
+    def get_factor(self, factor_name: str) -> Factor:
+        return next(f for f in self.design if f.name == factor_name)
+
 
 """
 A fully-crossed block. This block generates as many trials as needed to fully
@@ -97,7 +103,7 @@ class FullyCrossBlock(Block):
         complex_factors = list(filter(lambda f: f.has_complex_window(), self.design))
         windows = list(map(lambda f: f.levels[0].window, complex_factors))
         window_count = reduce(lambda total, w: total + self.variables_for_window(w), windows, 0)
-        
+
         return self.grid_variables() + window_count
 
     def variables_for_window(self, window: Union[Transition, Window]) -> int:

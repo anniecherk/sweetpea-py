@@ -214,6 +214,12 @@ def __run_nomorethankinarow(c: NoMoreThanKInARow, block: Block = block) -> Backe
 
 
 def test_nomorethankinarow():
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(3, color))
+    assert backend_request.ll_requests == [
+        LowLevelRequest("LT", 4, [1,  7, 13, 19]),
+        LowLevelRequest("LT", 4, [2,  8, 14, 20])
+    ]
+
     backend_request = __run_nomorethankinarow(NoMoreThanKInARow(1, ("color", "red")))
     assert backend_request.ll_requests == [
         LowLevelRequest("LT", 2, [1,  7 ]),
@@ -251,6 +257,24 @@ def test_nomorethankinarow():
         LowLevelRequest("LT", 1, [11]),
         LowLevelRequest("LT", 1, [17]),
         LowLevelRequest("LT", 1, [23])
+    ]
+
+
+def test_nomorethankinarow_with_transition():
+    block = fully_cross_block([color, text, color_repeats_factor],
+                              [color, text],
+                              [])
+
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(1, ("color repeats?", "yes")), block)
+    assert backend_request.ll_requests == [
+        LowLevelRequest("LT", 2, [17, 19]),
+        LowLevelRequest("LT", 2, [19, 21])
+    ]
+
+    backend_request = __run_nomorethankinarow(NoMoreThanKInARow(1, ("color repeats?", "no")), block)
+    assert backend_request.ll_requests == [
+        LowLevelRequest("LT", 2, [18, 20]),
+        LowLevelRequest("LT", 2, [20, 22])
     ]
 
 

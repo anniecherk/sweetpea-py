@@ -1,5 +1,6 @@
 from typing import List, Tuple, cast
 from itertools import product, chain, accumulate, repeat
+from functools import reduce
 
 from sweetpea.base_constraint import Constraint
 from sweetpea.internal import chunk, chunk_list, pairwise, get_level_name, get_all_level_names
@@ -182,12 +183,15 @@ class Derivation(Constraint):
         # TODO: validation
 
     def apply(self, block: Block, backend_request: BackendRequest) -> None:
-        if self.derived_idx < block.grid_variables():
+        if self.is_complex(block):
             self.__apply_derivation(block, backend_request)
         else:
             # If the index is beyond the grid variables, that means it's a derivation from a complex window.
             # (This is brittle, but I haven't come up with a better way yet.)
             self.__apply_derivation_with_complex_window(block, backend_request)
+
+    def is_complex(self, block: Block):
+        return self.derived_idx < block.grid_variables()
 
     def __apply_derivation(self, block: Block, backend_request: BackendRequest) -> None:
         trial_size = block.variables_per_trial()
@@ -264,17 +268,17 @@ class NoMoreThanKInARow(Constraint):
             levels = self.levels.levels  # Get the actual levels out of the factor.
             level_names = list(map(lambda l: get_level_name(l), levels))
             level_tuples = list(map(lambda l_name: (self.levels.name, l_name), level_names))
-            requests = list(map(lambda t: self.__desugar(t, block), level_tuples))
+            requests = list(map(lambda t: self.__generate_requests(t, block), level_tuples))
             backend_request.ll_requests += list(chain(*requests))
 
         # Should be a Tuple containing the factor name, and the level name.
         elif isinstance(self.levels, tuple) and len(self.levels) == 2:
-            backend_request.ll_requests += self.__desugar(cast(Tuple[str, str], self.levels), block)
+            backend_request.ll_requests += self.__generate_requests(cast(Tuple[str, str], self.levels), block)
 
         else:
             raise("Unrecognized levels specification in NoMoreThanKInARow constraint: " + self.levels)
 
-    def __desugar(self, level:Tuple[str, str], block: Block) -> List[LowLevelRequest]:
+    def __generate_requests(self, level:Tuple[str, str], block: Block) -> List[LowLevelRequest]:
         # Generate a list of (factor name, level name) tuples from the block
         level_tuples = get_all_level_names(block.design)
 
@@ -282,9 +286,10 @@ class NoMoreThanKInARow(Constraint):
         first_variable = level_tuples.index(level) + 1
 
         # Build the variable list
-        design_var_count = block.variables_per_trial()
-        num_trials = block.trials_per_sample()
-        var_list = list(accumulate(repeat(first_variable, num_trials), lambda acc, _: acc + design_var_count))
+        if first_variable <= block.variables_per_trial():
+            var_list = self.__build_variable_list(block, first_variable)
+        else:
+            var_list = self.__build_complex_variable_list(block, level)
 
         # Break up the var list into overlapping lists where len == k.
         raw_sublists = [var_list[i:i+self.k+1] for i in range(0, len(var_list))]
@@ -292,6 +297,21 @@ class NoMoreThanKInARow(Constraint):
 
         # Build the requests
         return list(map(lambda l: LowLevelRequest("LT", self.k + 1, l), sublists))
+
+    def __build_variable_list(self, block: Block, first_variable: int) -> List[int]:
+        design_var_count = block.variables_per_trial()
+        num_trials = block.trials_per_sample()
+        return list(accumulate(repeat(first_variable, num_trials), lambda acc, _: acc + design_var_count))
+
+    def __build_complex_variable_list(self, block: Block, level: Tuple[str, str]) -> List[int]:
+        factor = block.get_factor(level[0])
+        n = int(block.variables_for_window(factor.levels[0].window) / 2)
+        # TODO: Definitely going to break for multiple Transitions
+        start = block.grid_variables() + 1
+        if factor.levels[1].name == level[1]:
+            start += 1
+
+        return reduce(lambda l, v: l + [start + (v * 2)], range(n), [])
 
     def __eq__(self, other):
         return self.__dict__ == other.__dict__
